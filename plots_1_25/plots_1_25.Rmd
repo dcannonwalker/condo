@@ -1,0 +1,166 @@
+---
+title: "Plots 1/25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+library(kdensity)
+library(car)
+library(tidyr)
+load("data/asv112_longer.RData") #dat_longer
+load("data/asv112_summaries.RData") #dat_summaries
+dat_summaries_eps <- dat_summaries
+dat_summaries_eps$cumRelAbund[which(dat_summaries_eps$cumRelAbund == 0)] <- .Machine$double.eps
+```
+## Density estimates
+
+### Cumulative relative abundance
+
+```{r densities, echo=F}
+dat_summaries %>% filter(cumRelAbund > 0) %>%
+  ggplot(aes(x = log10(cumRelAbund), fill = geno)) +
+  # geom_histogram(alpha = 0.7,
+  #                position = 'identity',
+  #                aes(y = ..density..),
+  #                color = 'black')
+  geom_density(alpha = 0.7) +
+  geom_vline(aes(xintercept = log10(1e-2)), 
+             color = 'black', 
+             linetype = 'dashed') + 
+  labs(x = 'log10 Cumulative Relative Abundance (zeros removed)')
+dat_summaries_eps %>% ggplot(aes(x = log10(cumRelAbund), fill = geno)) +
+  # geom_histogram(alpha = 0.7,
+  #                position = 'identity',
+  #                aes(y = ..density..),
+  #                color = 'black')
+  geom_density(alpha = 0.7) +
+  geom_vline(aes(xintercept = log10(1e-2)), 
+             color = 'black', 
+             linetype = 'dashed') + 
+  labs(x = 'log10 Cumulative Relative Abundance (zeros replaced by machine epsilon)')
+dat_summaries %>% filter(cumRelAbund > 0) %>%
+  ggplot(aes(x = logit(cumRelAbund), fill = geno)) +
+  # geom_histogram(alpha = 0.7,
+  #                position = 'identity',
+  #                aes(y = ..density..),
+  #                color = 'black')
+  geom_density(alpha = 0.7) +
+  geom_vline(aes(xintercept = logit(1e-2)), 
+           color = 'black', 
+           linetype = 'dashed') + 
+  labs(x = 'logit Cumulative Relative Abundance (zeros removed)')
+dat_summaries %>%
+  ggplot(aes(x = cumRelAbund, fill = geno)) +
+  # geom_histogram(alpha = 0.7,
+  #                position = 'identity',
+  #                aes(y = ..density..),
+  #                color = 'black') +
+  geom_density(alpha = 0.7) +
+  labs(x = 'Cumulative Relative Abundance') +
+  xlim(0, 0.02) + 
+  geom_vline(aes(xintercept = 1e-2), 
+             color = 'black', 
+             linetype = 'dashed')
+dat_summaries %>% filter(cumRelAbund > 0) %>%
+  ggplot(aes(x = cumRelAbund, fill = geno)) +
+  # geom_histogram(alpha = 0.7,
+  #                position = 'identity',
+  #                aes(y = ..density..),
+  #                color = 'black')
+  geom_density(alpha = 0.7) +
+  geom_vline(aes(xintercept = 1e-2), 
+           color = 'black', 
+           linetype = 'dashed') + 
+  labs(x = 'Cumulative Relative Abundance (zeros removed)') +
+  xlim(0.0, 0.02)
+```
+
+### Total count 
+```{r totalcount, echo=FALSE}
+dat_summaries %>% filter(totalCount > 0) %>%
+  ggplot(aes(x = log10(totalCount), fill = geno)) +
+  # geom_histogram(alpha = 0.7,
+  #                position = 'identity',
+  #                aes(y = ..density..),
+  #                color = 'black')
+  geom_density(alpha = 0.7) +
+  geom_vline(aes(xintercept = log10(100)), 
+             color = 'black', 
+             linetype = 'dashed') + 
+  labs(x = 'log10 Total Count (zeros removed)')
+dat_summaries %>%
+  ggplot(aes(x = totalCount, fill = geno)) +
+  # geom_histogram(alpha = 0.7,
+  #                position = 'identity',
+  #                aes(y = ..density..),
+  #                color = 'black')
+  geom_density(alpha = 0.7) +
+  labs(x = 'Total Count') +
+  geom_vline(aes(xintercept = 100), 
+             color = 'black', 
+             linetype = 'dashed') + 
+  xlim(0, 1000)
+dat_summaries %>% filter(totalCount > 0) %>%
+  ggplot(aes(x = totalCount, fill = geno)) +
+  # geom_histogram(alpha = 0.7,
+  #                position = 'identity',
+  #                aes(y = ..density..),
+  #                color = 'black')
+  geom_density(alpha = 0.7) +
+  geom_vline(aes(xintercept = 100), 
+           color = 'black', 
+           linetype = 'dashed') + 
+  labs(x = 'Total Count (zeros removed)') + 
+  xlim(0,1000)
+```
+
+## Bar plots of total presence 
+```{r bar plots, echo=F}
+bar <- ggplot(dat_summaries, aes(x = genoPresence)) +
+  geom_bar() +
+  facet_wrap(.~geno) +
+  labs(x = 'number of samples in which ASV is present', y = 'number of ASVs')
+bar
+```
+
+## Notes
+The histogram and KDE are probably boundary effected near zero for the untransformed CRA and total count, i.e. underestimate density at zero and very near zero. I know in theory how to mitigate this effect, but I'm not sure it's worth it for current purposes (geom_density calls density(), which doesn't have the fixes built-in). 
+
+```{r boundarybias}
+
+#large bandwidth
+dat_summaries %>% filter(geno == 'Grassl') %>% 
+  ggplot(aes(x = cumRelAbund, fill = geno)) +
+  geom_histogram(alpha = 0.9,
+                 position = 'identity',
+                 aes(y = ..density..),
+                 color = 'black',
+                 binwidth = 0.0001) +
+  geom_density(alpha = 0.5, adjust = 30) + 
+  labs(x = 'CRA near 0, large bw') +
+  xlim(0, 0.002) 
+
+#small bandwidth
+dat_summaries %>% filter(geno == 'Grassl') %>% 
+  ggplot(aes(x = cumRelAbund, fill = geno)) +
+  geom_histogram(alpha = 0.9,
+                 position = 'identity',
+                 aes(y = ..density..),
+                 color = 'black',
+                 binwidth = 0.0001) +
+  geom_density(alpha = 0.5, adjust = 1/2) + 
+  labs(x = 'CRA near 0, with histogram') +
+  xlim(0, 0.002) 
+
+grassl <- dat_summaries %>% filter(geno == 'Grassl')
+nrow(grassl %>% filter(cumRelAbund == 0)) / nrow(grassl)
+nrow(grassl %>% filter(between(cumRelAbund, .Machine$double.eps, 0.0001)))/nrow(grassl)
+nrow(grassl %>% filter(between(cumRelAbund, 0.0001, 0.0002)))/nrow(grassl)
+nrow(grassl %>% filter(between(cumRelAbund, 0.0002, 0.0003)))/nrow(grassl)
+nrow(grassl %>% filter(between(cumRelAbund, 0.0003, 0.0004)))/nrow(grassl)
+nrow(grassl %>% filter(between(cumRelAbund, 0.0004, 0.0005)))/nrow(grassl)
+```
+
